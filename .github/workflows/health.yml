@@ -36,7 +36,12 @@ jobs:
 
       - name: Live check against every supported ATS
         id: live
-        run: node test/live-health.js --json | tee health.json
+        shell: bash
+        run: |
+          # pipefail matters: without it the exit status is tee's, so a failing
+          # check would be reported as a pass and the alert below would never fire.
+          set -o pipefail
+          node test/live-health.js --json | tee health.json
 
       - name: Human readable summary
         if: always()

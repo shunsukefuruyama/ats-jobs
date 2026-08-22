@@ -13,6 +13,10 @@ on:
   schedule:
     # Every 6 hours. Offset from the hour because scheduled runs bunch up on the hour.
     - cron: "23 */6 * * *"
+    # GitHub disables scheduled workflows after 60 days without repository activity.
+    # A weekly run on a different line does not prevent that, but it does make the
+    # gap obvious in the run history if it ever happens.
+    - cron: "11 6 * * 1"
   workflow_dispatch:
   push:
     branches: [main]

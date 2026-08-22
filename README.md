@@ -149,7 +149,7 @@ library can read.
 
 If you would rather not run it yourself, the same code runs as a hosted, monitored service on
 Apify, with scheduling, storage and CSV/JSON export:
-**[ATS Jobs Scraper](https://apify.com/plainapi/company-jobs-ats-api)**.
+**[ATS Jobs Scraper](https://apify.com/plainapi/greenhouse-workday-ashby-lever-jobs-scraper)**.
 
 ## Tests
 

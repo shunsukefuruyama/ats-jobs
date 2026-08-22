@@ -1,0 +1,15 @@
+{
+  "name": "ats-jobs",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Read job postings from the official public job-board APIs of 12 applicant tracking systems. No browser, no scraping, no API keys.",
+  "keywords": ["ats","jobs","greenhouse","workday","ashby","lever","smartrecruiters","rippling","workable","recruitee","bamboohr","breezy","teamtailor","personio","job-board","careers","recruiting"],
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "bin": { "ats-jobs": "./bin/ats-jobs.js" },
+  "files": ["src", "bin", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test test/*.test.js" },
+  "repository": { "type": "git", "url": "git+https://github.com/shunsukefuruyama/ats-jobs.git" }
+}

@@ -31,7 +31,10 @@ const CASES = [
   { provider: "workday", input: "https://cisco.wd5.myworkdayjobs.com/Cisco_Careers", minJobs: 50 },
   { provider: "workable", input: "workable:zego", minJobs: 5 },
   { provider: "recruitee", input: "recruitee:channable", minJobs: 3 },
-  { provider: "bamboohr", input: "bamboohr:pandadoc", minJobs: 1 },
+  // pandadoc was the sample until 2026-08-24, when its BambooHR account expired
+  // (/careers/list now 302s to /settings/account/expired.php). Swapped, and the
+  // library now says so out loud instead of reporting "no ATS found".
+  { provider: "bamboohr", input: "bamboohr:userpilot", minJobs: 1 },
   { provider: "breezy", input: "breezy:breezy", minJobs: 1 },
   { provider: "teamtailor", input: "teamtailor:career.instabee.com", minJobs: 5 },
   // Passing a bare domain must still resolve to the right platform.
@@ -59,9 +62,13 @@ for (const c of CASES) {
       ms: Date.now() - started,
       reason: ok
         ? ""
-        : r.provider !== c.provider
-          ? `detected as ${r.provider ?? "nothing"}`
-          : `only ${r.jobs.length} roles returned (expected at least ${c.minJobs})`,
+        // The library's own error is the most useful thing we have; never drop it.
+        // "detected as nothing" hid an expired account for an unknown length of time.
+        : r.error
+          ? r.error
+          : r.provider !== c.provider
+            ? `detected as ${r.provider ?? "nothing"}`
+            : `only ${r.jobs.length} roles returned (expected at least ${c.minJobs})`,
     };
   } catch (err) {
     row = {

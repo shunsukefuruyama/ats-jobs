@@ -69,10 +69,16 @@ async function getBody(url, { timeoutMs = 20_000, retries = 2, method = "GET", b
       if (!res.ok) return { ok: false, status: res.status };
 
       const raw = await res.text();
+      // **リダイレクト先を握り潰さない。**
+      // 2026-08-24、BambooHR の失効アカウント（`pandadoc`）が
+      //   /careers/list -> 302 -> /settings/account/expired.php
+      // と飛び、その HTML を掴んで JSON 解析に失敗し、
+      // 「この ATS ではない」と報告していた。**板が消えたことと、この ATS でないことは別である。**
+      const landedElsewhere = typeof res.url === "string" && res.url !== url;
       try {
-        return { ok: true, status: res.status, body: JSON.parse(raw) };
+        return { ok: true, status: res.status, body: JSON.parse(raw), finalUrl: res.url, landedElsewhere };
       } catch {
-        return { ok: true, status: res.status, body: raw };
+        return { ok: true, status: res.status, body: raw, finalUrl: res.url, landedElsewhere };
       }
     } catch (err) {
       if (attempt < retries && err?.name !== "AbortError") {
@@ -131,6 +137,23 @@ async function tryProvider(provider, slug, { includeDescription, timeoutMs, maxJ
   if (!first.ok) return { provider, slug, status: first.status || first.error, jobs: null };
 
   const jobs = provider.parse(first.body, slug);
+
+  // **板が消えたことと、この ATS でないことを混同しない。**
+  // 失効した BambooHR アカウントは /careers/list から
+  // /settings/account/expired.php へ 302 する。fetch は既定でこれを追い、
+  // 返ってきた HTML は JSON ではないので parse が null を返す。
+  // その null をそのまま「この ATS ではない」と読むと、
+  // 「板はもう存在しない」という、呼び出し側が最も知りたい事実が消える。
+  if (jobs === null && first.landedElsewhere) {
+    return {
+      provider,
+      slug,
+      status: first.status,
+      jobs: null,
+      goneTo: first.finalUrl,
+    };
+  }
+
   if (jobs === null || !provider.nextOffset) {
     return { provider, slug, status: first.status, jobs };
   }
@@ -280,6 +303,27 @@ export async function fetchCompany(input, opts) {
   }
 
   if (!chosen) {
+    // **「板が消えた」と「そもそも見つからない」を区別して返す。**
+    // 呼び出し側にとって、この2つは全く違う話である。
+    // 前者は「以前は存在した。もう無い」であり、対処は板の差し替え。
+    // 後者は「探し方が悪いのかもしれない」であり、対処は入力の見直し。
+    // 一緒くたに "No supported ATS job board found" と返すと、
+    // 利用者は自分の入力を疑い続けることになる。
+    const gone = settled.filter((r) => r && r.goneTo);
+    if (gone.length) {
+      const g = gone[0];
+      return {
+        input,
+        provider: null,
+        slug: null,
+        jobs: [],
+        error:
+          `The ${g.provider.label} board "${g.slug}" no longer exists ` +
+          `(it redirects to ${g.goneTo}). The account was probably closed or expired.`,
+        goneTo: g.goneTo,
+        attempts,
+      };
+    }
     return {
       input,
       provider: null,

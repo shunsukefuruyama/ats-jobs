@@ -40,7 +40,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * One HTTP request. Parses JSON when it can, and returns the raw string otherwise (Personio
  * answers in XML).
  *
- * `429` and `5xx` mean the other side is having a moment, so back off and retry a few times.
+ * `429`, `5xx`, and timeouts mean the other side may be having a moment, so back off and retry a few times.
  * `404` is a definite answer — this is not that ATS — so it is never retried.
  */
 async function getBody(url, { timeoutMs = 20_000, retries = 2, method = "GET", body } = {}) {
@@ -81,7 +81,7 @@ async function getBody(url, { timeoutMs = 20_000, retries = 2, method = "GET", b
         return { ok: true, status: res.status, body: raw, finalUrl: res.url, landedElsewhere };
       }
     } catch (err) {
-      if (attempt < retries && err?.name !== "AbortError") {
+      if (attempt < retries) {
         await sleep(800 * 2 ** attempt);
         continue;
       }
@@ -321,6 +321,19 @@ export async function fetchCompany(input, opts) {
           `The ${g.provider.label} board "${g.slug}" no longer exists ` +
           `(it redirects to ${g.goneTo}). The account was probably closed or expired.`,
         goneTo: g.goneTo,
+        attempts,
+      };
+    }
+    const timedOut = known && settled.find((r) => r && r.status === "timeout" && r.jobs === null);
+    if (timedOut) {
+      return {
+        input,
+        provider: null,
+        slug: null,
+        jobs: [],
+        error:
+          `Timed out contacting ${known.label} for "${timedOut.slug}" after ${timeoutMs}ms — ` +
+          "the upstream API may be slow or temporarily unreachable. Try again or pass a longer timeoutMs.",
         attempts,
       };
     }
